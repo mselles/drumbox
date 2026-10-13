@@ -1,76 +1,115 @@
-# DrumBox
+# DrumBox Studio
 
-A free, open source drum machine plugin inspired by the early 80s digital drum machines. AU, VST3 and Standalone, built with JUCE and C++.
+A bite sized, self contained studio as a free, open source plugin: a drum machine inspired by the early 80s digital machines, four synth tracks you write with the **orb roll**, and a song builder that bounces your track to WAV. AU, VST3 and Standalone, built with JUCE and C++.
 
-"DrumBox" is a working name. Rename it in `CMakeLists.txt` (`PRODUCT_NAME`, and the `DRUMBOX` title in `Source/PluginEditor.cpp`).
+"DrumBox" is a working name. Rename it in `CMakeLists.txt` (`PRODUCT_NAME`) and the wordmark in `Source/PluginEditor.cpp`.
 
-## What it does right now
+## The screens
 
-* **8 synthesized voices:** kick, snare, rim, clap, closed hat, open hat, tom, cowbell. All synthesized, so the project contains no third party samples and you can license it however you like.
-* **16 step sequencer** with three states per step: off, on, accent.
-* **Swing from 50% to 75%**, applied to every second 16th, the way the classic machines did it. 54% is the default; 66% is a triplet shuffle.
-* **Follows your DAW's transport.** When the DAW plays, the pattern locks to its tempo and bar position. With the DAW stopped (or in Standalone), press PLAY to run on the internal clock.
-* **Plays from MIDI** using General MIDI drum notes (36 kick, 38 snare, 37 rim, 39 clap, 42 closed hat, 46 open hat, 45 tom, 56 cowbell), so pads and the piano roll work.
-* **Per voice mixer:** level, tune (±12 semitones), decay, pan. Closed hat chokes open hat.
-* **Vintage knob:** bit depth reduction, sample rate reduction and an output filter, for that 12 bit grit.
-* **Saves with your session:** knobs and pattern are stored in the DAW project.
+Switch screens with the tabs or the number keys **1 to 6**. **Space** plays and stops. **Cmd/Ctrl + Z** undoes, **Shift + Cmd/Ctrl + Z** redoes, everywhere.
+
+**1 · Drums.** 8 synthesized voices x 16 steps. Click a step for on, again for accent, again for off; drag to paint; right click clears. Click a voice name to edit its tune, decay, level and pan. Swing, vintage (12 bit grit) and master at the bottom.
+
+**2 to 5 · Tracks A to D.** Each track has an engine, a sound and its own orb roll.
+
+| Engine | What it is |
+|---|---|
+| POLY 6 | Chorused analog poly: saw + pulse + sub through a resonant filter |
+| TINE | Electric piano: FM with a metallic tine on the attack, softer when you play softer |
+| BRASS 80 | Big poly brass: three detuned saws, slow opening filter, a scoop into each note, delayed vibrato |
+| ROM 90 | Digital workstation: an FM body with a pulse layer, bells up high and punchy bass down low |
+
+**6 · Song.** Five lanes, drums plus A to D, laid out in 2 bar slots across the whole song (up to 128 bars, about 4.5 minutes at 112 bpm; the demo is 84 bars, three minutes).
+
+## The orb roll
+
+| Do this | To |
+|---|---|
+| Click empty space | Add an orb |
+| Double click further along a row | Stretch the orb before it out to there |
+| Drag an orb | Move it (and everything selected with it) |
+| Option/Alt + drag | Change velocity: the orb grows and shrinks |
+| Shift + click | Add or remove an orb from the selection |
+| Drag on empty space | Box select (Shift adds to the selection) |
+| Drag the ring on a selected orb onto another orb | Make a slide |
+| Click a slide | Shape it: Linear, Late or Early presets, drag the curve, set the glide time |
+| Type in Length | Any number of beats, even between dividers (marked with *) |
+| Arrows | Nudge; Shift + up/down moves an octave |
+| Delete, Esc, Cmd/Ctrl + A | Delete, deselect, select all |
+
+The roll runs from C5 down to C2; scroll or use **Up / Down** for the bass. Set the **key** at the top. Notes outside the key get a dashed rose ring and a small notice under the roll offering **Keep it** or **move it** to the nearest note in the key. Drag chords from the **chord bucket** onto a row: they land in that octave, and `*` marks the chords that belong to the key.
+
+## Variations and the song
+
+Every track has 8 variations, **A to H**. Click a letter to edit that variation; **Alt + click** a letter to copy the one you're on into it, then change it.
+
+The top bar's **LOOP / SONG** switch decides what plays:
+- **LOOP**: every track repeats the variation you're editing. This is how you write.
+- **SONG**: each lane plays whatever sits in each slot of the song. This is how you arrange.
+
+On the Song screen, pick a letter in a lane's header (the brush), then click or drag along the lane to paint it in. Alt + drag erases. Right click a slot to choose any variation. **M** mutes a lane. **- / +** change the song's length by 8 bars.
+
+When the DAW is playing, DrumBox follows its tempo and position, so song bar 1 is the DAW's bar 1. On its own, the play button runs the internal clock and the song loops.
+
+## Export
+
+On the Song screen:
+- **Export WAV** bounces the song to a 24 bit stereo WAV in the background (much faster than real time), with a couple of seconds for tails to ring out. In LOOP mode, or with an empty song, it bounces four passes of the loop.
+- **Export MIDI** writes the arrangement as a MIDI file: drums on channel 10 (General MIDI notes), tracks A to D on channels 1 to 4.
+
+Everything, patterns, sounds and the song, is saved inside your DAW session.
 
 ## Build it on your Mac
 
-You need Xcode (from the App Store) and CMake.
+You need the Xcode Command Line Tools and CMake (the installer from cmake.org is easiest on macOS 13).
 
 ```bash
-xcode-select --install          # command line tools, if you haven't
-brew install cmake              # or download from cmake.org
-
 cd drumbox
-cmake -B build -G Xcode         # first run downloads JUCE, takes a minute
-cmake --build build --config Release
+cmake -B build -DCMAKE_BUILD_TYPE=Release   # first run downloads JUCE
+cmake --build build -j4
+open build/DrumBox_artefacts/Release/Standalone/DrumBox.app
 ```
 
-The build copies the plugin into `~/Library/Audio/Plug-Ins/Components` (AU) and `~/Library/Audio/Plug-Ins/VST3`. Rescan plugins in your DAW. In Logic, it shows up under **AU Instruments > Miles Selles > DrumBox**.
+The build copies the AU and VST3 into `~/Library/Audio/Plug-Ins`. Rescan in your DAW. In FL Studio: Options > Manage plugins > Find installed plugins, then star DrumBox.
 
-The Standalone app lands in `build/DrumBox_artefacts/Release/Standalone/`. That is the fastest way to try changes.
-
-To work in Xcode instead, open `build/DrumBox.xcodeproj`, choose the `DrumBox_Standalone` scheme and hit Run.
-
-### Hear changes without a DAW
+## Tests
 
 ```bash
-cmake --build build --config Release --target RenderTest
-./build/RenderTest_artefacts/Release/RenderTest ./renders
+cmake --build build --target RenderTest UiTest
+./build/RenderTest_artefacts/Release/RenderTest ./renders   # bounces the demo song + MIDI, plays each engine
+./build/UiTest_artefacts/Release/UiTest ./shots             # screenshots every screen, drives the orb roll
 ```
-
-That writes `demo_groove.wav` (four bars of the default groove) and `each_voice.wav` (every drum once). Use it when you're tuning a voice: edit `DrumVoices.h`, rebuild, listen.
 
 ## How the code is laid out
 
 | File | What it is |
 |---|---|
-| `Source/DrumVoices.h` | The eight drum sounds. Each is a small class with `trigger()` and `process()`. Start here to change how anything sounds. |
-| `Source/DrumEngine.h` | Mixer, sequencer and vintage stage. `addSequencerEvents()` turns a beat position into sample accurate hits, swing included. |
-| `Source/PluginProcessor.*` | The DAW bridge: parameters, host tempo, MIDI, saving state. |
-| `Source/PluginEditor.*` | The UI: the step grid with its chase light, the knobs, the look. |
-| `Tests/RenderTest.cpp` | Offline renderer. |
+| `Source/Project.h` | The song as plain data: drum patterns, tracks, orbs, slides, the arrangement, the key |
+| `Source/Studio.h` | The sequencer and mixer. Live playback and export both run through it |
+| `Source/DrumVoices.h`, `DrumEngine.h` | The eight drum sounds, their mixer and the vintage stage |
+| `Source/SynthEngine.h` | The four synth engines, slides, and the stereo chorus |
+| `Source/Exporter.h` | WAV bounce and MIDI export |
+| `Source/ProjectIO.h` | Saving the project into the DAW session |
+| `Source/PluginProcessor.*` | The DAW bridge, undo history, and handing the audio thread a safe copy of every edit |
+| `Source/UI/Theme.h` | The palette (deep purple and dark gold) and drawing helpers. Change colors here |
+| `Source/UI/OrbRoll.h` | The orb roll |
+| `Source/UI/InstrumentPage.h`, `DrumPage.h`, `SongPage.h` | The screens |
 
-The engine and voices don't depend on JUCE. That keeps the sound code simple to read, and you could reuse it on an ESP32 or in a web version later.
+The engine code doesn't depend on JUCE's UI, so it can move to an ESP32 or the web later.
 
 ## Roadmap
 
-Roughly in order of how much they'd change the instrument:
-
-1. **Sample playback.** Let any voice load a WAV instead of the synth. Ship with sounds you record yourself (your own kit in the dorm is perfect source material). The Audio Programmer sampler series covers exactly this.
-2. **Multiple patterns and song mode.** 8 or 16 pattern slots, then chain them.
-3. **Per step velocity and flam** instead of just accent.
-4. **Individual outputs** so each drum gets its own mixer channel in the DAW.
-5. **Pattern length** per voice (polyrhythms).
-6. **Real UI design pass.** The current look is a functional starting point.
-7. **Presets** and a website, GitHub releases and a signed, notarized installer.
+1. **Sample playback** for drum voices, so you can load your own kit.
+2. **Slide automation across the song**, for example a glide that gets longer each bar.
+3. **Per track effects**: delay and a spring style reverb.
+4. **Live MIDI into the instruments**, to play the selected track from a keyboard.
+5. **Stem export**, one WAV per lane.
+6. **Presets** and a signed, notarized installer.
 
 ## On the name and sounds
 
-Keep describing it as *inspired by* the LinnDrum rather than a clone. LinnDrum is Roger Linn's trademark and the original sounds are copyrighted, so a project that synthesizes or records its own sounds stays clean to release for free.
+Describe it as *inspired by* classic machines rather than a clone. LinnDrum, Juno and Rhodes are other companies' trademarks, and every sound here is synthesized, so a free release stays clean.
 
 ## License
 
-JUCE is free to use under the GPLv3 for open source projects, so releasing this under GPLv3 is the simplest path. See juce.com for the JUCE license terms.
+JUCE is free for open source projects under the GPLv3, so GPLv3 is the simplest license for this project.

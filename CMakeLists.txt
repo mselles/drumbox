@@ -30,11 +30,12 @@ juce_add_plugin(DrumBox
     PLUGIN_CODE Drbx
     FORMATS AU VST3 Standalone
     PRODUCT_NAME "DrumBox"
+    BUNDLE_ID com.milesselles.drumbox
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
-    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+    EDITOR_WANTS_KEYBOARD_FOCUS TRUE
     COPY_PLUGIN_AFTER_BUILD TRUE)
 
 target_sources(DrumBox PRIVATE
@@ -45,7 +46,7 @@ target_compile_definitions(DrumBox PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
-    JUCE_DISPLAY_SPLASH_SCREEN=0)
+    JUCE_MODAL_LOOPS_PERMITTED=1)
 
 target_link_libraries(DrumBox
     PRIVATE
@@ -62,5 +63,11 @@ juce_add_console_app(RenderTest PRODUCT_NAME "RenderTest")
 target_sources(RenderTest PRIVATE Tests/RenderTest.cpp)
 target_include_directories(RenderTest PRIVATE Source)
 target_compile_definitions(RenderTest PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
-target_link_libraries(RenderTest PRIVATE juce::juce_audio_formats juce::juce_core
+target_link_libraries(RenderTest PRIVATE juce::juce_audio_formats juce::juce_core juce::juce_data_structures
     PUBLIC juce::juce_recommended_config_flags)
+
+# UI test: builds the editor offscreen, screenshots each page and drives the
+# orb roll with synthetic mouse events. Needs a display (or xvfb-run on Linux).
+juce_add_console_app(UiTest PRODUCT_NAME "UiTest")
+target_sources(UiTest PRIVATE Tests/UiTest.cpp)
+target_link_libraries(UiTest PRIVATE DrumBox juce::juce_audio_utils juce::juce_dsp)

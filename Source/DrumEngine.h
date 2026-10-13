@@ -3,11 +3,9 @@
 // DrumEngine.h
 // The whole instrument minus the UI and the DAW plumbing:
 //   * 8 voices + mixer (level, tune, decay, pan per voice)
-//   * 16 step pattern sequencer locked to a beat position (PPQ), with swing
 //   * "Vintage" stage: bit depth + sample rate reduction for that 12 bit grit
 //
-// The processor feeds it a beat position and BPM each block; the engine works
-// out which steps land inside the block and triggers them sample accurately.
+// Hits arrive from the sequencer with sample offsets, so timing is sample accurate.
 //==============================================================================
 #include "DrumVoices.h"
 #include <atomic>
@@ -75,8 +73,7 @@ public:
         voices[kOpenHat]   = std::make_unique<Hat> (0.35f);
         voices[kTom]       = std::make_unique<Tom>();
         voices[kCowbell]   = std::make_unique<Cowbell>();
-        for (auto& row : pattern) for (auto& s : row) s.store (0);
-        events.reserve (256);
+        events.reserve (1024);
     }
 
     void prepare (double sampleRate)
@@ -88,45 +85,17 @@ public:
     }
 
     //--------------------------------------------------------------------------
-    // Pattern access (thread safe: UI writes, audio reads)
-    int  getStep (int voice, int step) const       { return pattern[(size_t) voice][(size_t) step].load(); }
-    void setStep (int voice, int step, int value)  { pattern[(size_t) voice][(size_t) step].store ((uint8_t) value); }
-    int  getCurrentStep() const                    { return currentStep.load(); }
-    void clearCurrentStep()                        { currentStep.store (-1); }
-
-    //--------------------------------------------------------------------------
-    // Works out which steps start inside this block.
-    //   ppqStart: beat position (quarter notes) at the first sample of the block
-    void addSequencerEvents (double ppqStart, double bpm, int numSamples, float swing)
+    // Queue a hit. The sequencer (Sequencer.h) decides when drums play;
+    // this engine only makes the sound.
+    void addTrigger (int sampleOffset, int voice, float velocity)
     {
-        const double ppqPerSample = bpm / 60.0 / sr;
-        const double ppqEnd = ppqStart + ppqPerSample * numSamples;
-        constexpr double stepLen = 0.25;                          // a 16th note
-        const double swingOffset = (std::clamp (swing, 0.5f, 0.75f) - 0.5) * 2.0 * stepLen;
-
-        const long first = (long) std::floor (ppqStart / stepLen) - 1;
-        const long last  = (long) std::floor (ppqEnd / stepLen);
-
-        for (long k = first; k <= last; ++k)
-        {
-            // Swing delays every second 16th (the "e" and "a" of each beat)
-            const double t = k * stepLen + ((k & 1) ? swingOffset : 0.0);
-            if (t < ppqStart || t >= ppqEnd) continue;
-
-            const int step = (int) (((k % numSteps) + numSteps) % numSteps);
-            const int offset = std::clamp ((int) ((t - ppqStart) / ppqPerSample), 0, numSamples - 1);
-            currentStep.store (step);
-
-            for (int v = 0; v < numVoices; ++v)
-                if (const int s = getStep (v, step); s > 0)
-                    events.push_back ({ offset, v, s == 2 ? accentVelocity : normalVelocity });
-        }
+        if (voice >= 0 && voice < numVoices && events.size() < events.capacity())
+            events.push_back ({ sampleOffset, voice, velocity });
     }
 
     void addMidiTrigger (int sampleOffset, int note, float velocity)
     {
-        if (const int v = voiceForMidiNote (note); v >= 0)
-            events.push_back ({ sampleOffset, v, velocity });
+        addTrigger (sampleOffset, voiceForMidiNote (note), velocity);
     }
 
     //--------------------------------------------------------------------------
@@ -195,8 +164,6 @@ public:
 private:
     double sr = 44100.0;
     std::array<std::unique_ptr<Voice>, numVoices> voices;
-    std::array<std::array<std::atomic<uint8_t>, numSteps>, numVoices> pattern;
-    std::atomic<int> currentStep { -1 };
     std::vector<TriggerEvent> events;
     std::array<float, numVoices> gainL {}, gainR {};
     double holdCounter = 0.0;
